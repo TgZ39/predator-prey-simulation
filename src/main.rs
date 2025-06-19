@@ -30,6 +30,8 @@ struct Board {
     size: (usize, usize),
     fields: Vec<Option<Field>>,
     on_turn: Field,
+    num_predators: usize,
+    num_prey: usize,
 }
 
 impl Board {
@@ -54,6 +56,8 @@ impl Board {
             size,
             fields,
             on_turn: Field::Predator,
+            num_predators,
+            num_prey,
         }
     }
 
@@ -67,6 +71,36 @@ impl Board {
     fn set_field(&mut self, position: (usize, usize), value: Option<Field>) {
         let index = position.1 * self.size.0 + position.0;
         assert!(index < self.size.0 * self.size.1);
+
+        let old = self.fields[index];
+        match old {
+            Some(Field::Prey) => self.num_prey -= 1,
+            Some(Field::Predator) => self.num_predators -= 1,
+            None => {}
+        }
+
+        match value {
+            Some(Field::Prey) => self.num_prey += 1,
+            Some(Field::Predator) => self.num_predators += 1,
+            None => {}
+        }
+
+        self.fields[index] = value;
+    }
+
+    fn set_index(&mut self, index: usize, value: Option<Field>) {
+        let old = self.fields[index];
+        match old {
+            Some(Field::Prey) => self.num_prey -= 1,
+            Some(Field::Predator) => self.num_predators -= 1,
+            None => {}
+        }
+
+        match value {
+            Some(Field::Prey) => self.num_prey += 1,
+            Some(Field::Predator) => self.num_predators += 1,
+            None => {}
+        }
 
         self.fields[index] = value;
     }
@@ -86,15 +120,12 @@ impl Board {
                     }
                     _ => {
                         // no prey found which means kill one predator
-                        let first_predator = self
-                            .fields
-                            .iter()
-                            .position(|field| matches!(field, Some(Field::Predator)));
-
-                        if let Some(predator) = first_predator {
-                            // found a predator
-                            // kill that predator
-                            self.fields[predator] = None;
+                        for i in 0..self.fields.len() {
+                            let field = self.fields[i];
+                            if matches!(field, Some(Field::Predator)) {
+                                self.set_index(i, None);
+                                break;
+                            }
                         }
                     }
                 }
@@ -147,22 +178,19 @@ impl Board {
         }
     }
 
+    #[inline]
     fn num_predators(&self) -> usize {
-        self.fields
-            .iter()
-            .filter(|field| matches!(field, Some(Field::Predator)))
-            .count()
+        self.num_predators
     }
 
+    #[inline]
     fn num_prey(&self) -> usize {
-        self.fields
-            .iter()
-            .filter(|field| matches!(field, Some(Field::Prey)))
-            .count()
+        self.num_prey
     }
 
+    #[inline]
     fn num_empty(&self) -> usize {
-        self.fields.iter().filter(|field| field.is_none()).count()
+        self.size.0 * self.size.1 - self.num_predators() - self.num_prey()
     }
 }
 

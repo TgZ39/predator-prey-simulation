@@ -60,7 +60,7 @@ function plot_data(num_predator, num_prey, num_empty; output_file="population_pl
         linestyle = :dot,
         lw = 3
     )
-    
+
     savefig(output_file)
 end
 
