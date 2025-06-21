@@ -25,13 +25,14 @@ fn main() {
     data_file.write_all(json.as_bytes()).unwrap();
 }
 
-#[derive(Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 struct Board {
     size: (usize, usize),
     fields: Vec<Option<Field>>,
     on_turn: Field,
     num_predators: usize,
     num_prey: usize,
+    rng: ThreadRng,
 }
 
 impl Board {
@@ -50,7 +51,9 @@ impl Board {
         for _ in 0..(size.0 * size.1 - num_predators - num_prey) {
             fields.push(None);
         }
-        fields.shuffle(&mut rand::rng());
+
+        let mut rng = rand::rng();
+        fields.shuffle(&mut rng);
 
         Board {
             size,
@@ -58,6 +61,7 @@ impl Board {
             on_turn: Field::Predator,
             num_predators,
             num_prey,
+            rng,
         }
     }
 
@@ -65,6 +69,10 @@ impl Board {
         let index = position.1 * self.size.0 + position.0;
         assert!(index < self.size.0 * self.size.1);
 
+        &self.fields[index]
+    }
+
+    fn get_index(&self, index: usize) -> &Option<Field> {
         &self.fields[index]
     }
 
@@ -106,17 +114,15 @@ impl Board {
     }
 
     fn step(&mut self) {
-        let rand_pos = (
-            rand::random_range(0..self.size.0),
-            rand::random_range(0..self.size.1),
-        );
+        let rand_index = self.rng.random_range(0..self.size.0 * self.size.1);
+        let rand_pos = (rand_index % self.size.0, rand_index / self.size.0);
 
         match self.on_turn {
             Field::Predator => {
-                match self.get_field(rand_pos) {
+                match self.get_index(rand_index) {
                     Some(field) if *field == Field::Prey => {
                         // prey found which means turn this field into a predator
-                        self.set_field(rand_pos, Some(Field::Predator));
+                        self.set_index(rand_index, Some(Field::Predator));
                     }
                     _ => {
                         // no prey found which means kill one predator
@@ -131,7 +137,7 @@ impl Board {
                 }
             }
             Field::Prey => {
-                match self.get_field(rand_pos) {
+                match self.get_index(rand_index) {
                     Some(field) if *field == Field::Prey => {
                         // field is prey which means check adjacent fields for empty fields
                         let up = if rand_pos.1 > 0 {
